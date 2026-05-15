@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FlightBoard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --flap-top: #1a1a1a;
+    --flap-bot: #111111;
+    --flap-border: #2a2a2a;
+    --amber: #ffb300;
+    --amber-dim: #7a5500;
+    --amber-glow: rgba(255,179,0,0.12);
+    --red: #ff3b3b;
+    --green: #00d97e;
+    --blue: #4d9fff;
+    --white: #f0ece0;
+    --muted: #555;
+    --header-h: 64px;
+    --controls-h: 52px;
+    --row-h: 66px;
+    --flap-font: 'Share Tech Mono', monospace;
+    --ui-font: 'Oswald', sans-serif;
+    /* data columns with explicit gap columns between them */
+    /* flap = 20px wide + 2px gap; col width = n x 20 + (n-1) x 2 */
+    /* flight:7=180, airline:12=310, city:12=310, aircraft:3=76, sched:5=128, actual:5=128, gate:4=102 */
+    --grid: 180px 28px 310px 28px 310px 28px 76px 28px 128px 28px 128px 28px 102px 28px 1fr;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--ui-font);
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    height: var(--header-h);
+    background: #0d0d0d;
+    border-bottom: 1px solid #1e1e1e;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .logo {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    color: var(--amber);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--muted); font-weight: 300; }
+
+  #airport-select {
+    background: #1a1a1a;
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    font-family: var(--ui-font);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  #airport-select option { background: #1a1a1a; color: var(--white); }
+
+  #clock {
+    margin-left: auto;
+    font-family: var(--flap-font);
+    font-size: 20px;
+    color: var(--amber);
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  /* ── CONTROLS ── */
+  #controls {
+    height: var(--controls-h);
+    background: #0a0a0a;
+    border-bottom: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 8px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .pill-btn {
+    font-family: var(--ui-font);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 2px;
+    border: 1px solid #333;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .pill-btn.active {
+    border-color: var(--amber-dim);
+    color: var(--amber);
+    background: var(--amber-glow);
+  }
+  .vdiv { width:1px; height:22px; background:#2a2a2a; flex-shrink:0; }
+
+  #interval-select, #terminal-filter {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: var(--muted);
+    font-family: var(--ui-font);
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+
+  #right-controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  #last-upd {
+    font-family: var(--flap-font);
+    font-size: 9px;
+    color: #333;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  /* countdown ring */
+  #refresh-ring {
+    position: relative; width:30px; height:30px;
+    flex-shrink:0; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #refresh-ring svg { position:absolute; top:0; left:0; transform:rotate(-90deg); }
+  #ring-track { fill:none; stroke:#222; stroke-width:3; }
+  #ring-fill  {
+    fill:none; stroke:var(--amber-dim); stroke-width:3;
+    stroke-linecap:round;
+    stroke-dasharray:69.1; stroke-dashoffset:0;
+    transition:stroke-dashoffset 1s linear, stroke 0.5s;
+  }
+  #ring-label {
+    font-family: var(--flap-font);
+    font-size: 14px;
+    color: var(--muted);
+    z-index: 1;
+    user-select: none;
+    pointer-events: none;
+  }
+  #refresh-ring:active #ring-label { color: var(--amber); }
+
+  #api-key-input {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    color: var(--white);
+    font-family: var(--flap-font);
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 2px;
+    outline: none;
+    width: 170px;
+  }
+  #api-key-input::placeholder { color: #444; }
+
+  .ctrl-btn {
+    font-family: var(--ui-font);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    background: var(--amber-glow);
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .ctrl-btn:active { background: rgba(255,179,0,0.28); }
+
+  /* ── COLUMN HEADERS ── */
+  #col-headers {
+    background: #000;
+    border-bottom: 2px solid #1e1e1e;
+    display: grid;
+    grid-template-columns: var(--grid);
+    padding: 0 20px;
+    height: 28px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .col-hdr {
+    font-family: var(--ui-font);
+    font-size: 9px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── BOARD ── */
+  #board-wrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 20px 20px;
+    position: relative;
+  }
+  #board-wrap::-webkit-scrollbar { width:4px; }
+  #board-wrap::-webkit-scrollbar-track { background:transparent; }
+  #board-wrap::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:2px; }
+
+  /* ── ROW ── */
+  .flight-row {
+    display: grid;
+    grid-template-columns: var(--grid);
+    height: var(--row-h);
+    align-items: center;
+    border-bottom: 1px solid #161616;
+    position: relative;
+  }
+  .flight-row::after {
+    content:''; position:absolute;
+    left:0; right:0; top:50%;
+    height:1px; background:#141414;
+    pointer-events:none;
+  }
+
+  /* ── FLAP CELL ── */
+  .flap-cell {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    height: 100%;
+    padding: 4px 0;
+  }
+
+  .flap {
+    position: relative;
+    width: 24px; height: 44px;
+    perspective: 180px;
+    flex-shrink: 0;
+  }
+  .flap-half {
+    position: absolute;
+    width: 100%; height: 50%;
+    overflow: hidden;
+  }
+  .flap-half.top {
+    top: 0;
+    background: var(--flap-top);
+    border: 1px solid var(--flap-border);
+    border-bottom: none;
+    border-radius: 2px 2px 0 0;
+  }
+  .flap-half.bot {
+    bottom: 0;
+    background: var(--flap-bot);
+    border: 1px solid var(--flap-border);
+    border-top: none;
+    border-radius: 0 0 2px 2px;
+  }
+  /* The span is positioned absolutely relative to the FLAP (not the half),
+     so it renders as a full character across both panels. Each half-panel
+     clips to its own 50%, top showing the upper half, bot showing the lower. */
+  .flap-half span {
+    font-family: var(--flap-font);
+    font-size: 20px;
+    line-height: 44px;
+    color: var(--amber);
+    display: block;
+    text-align: center;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 44px;
+  }
+  /* Top half: span sits at top:0, clip shows rows 0–17px = upper half of char */
+  /* Bot half: span must be offset to -17px (its top relative to this panel's top)
+     so that rows 17–34px of the character are visible through the clip */
+  .flap-half.bot span {
+    top: -22px;
+  }
+  .flap::after {
+    content:''; position:absolute;
+    left:0; right:0; top:50%;
+    height:1px; background:#000;
+    z-index:10; transform:translateY(-50%);
+  }
+
+  /* ── FLIP ANIMATION ── */
+  @keyframes flipTop {
+    0%   { transform: rotateX(0deg); }
+    100% { transform: rotateX(-90deg); }
+  }
+  @keyframes flipBot {
+    0%   { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+  .flap.flipping .flap-half.top {
+    transform-origin: bottom center;
+    animation: flipTop 0.11s ease-in forwards;
+  }
+  .flap.flipping .flap-half.bot {
+    transform-origin: top center;
+    animation: flipBot 0.11s ease-out 0.09s forwards;
+  }
+
+  /* ── STATUS BADGE ── */
+  .status-badge {
+    font-family: var(--flap-font);
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .s-ontime    { color:var(--green); border:1px solid rgba(0,217,126,0.3); background:rgba(0,217,126,0.08); }
+  .s-delayed   { color:var(--amber); border:1px solid rgba(255,179,0,0.3);  background:var(--amber-glow); }
+  .s-cancelled { color:var(--red);   border:1px solid rgba(255,59,59,0.3);  background:rgba(255,59,59,0.08); }
+  .s-boarding  { color:var(--blue);  border:1px solid rgba(77,159,255,0.3); background:rgba(77,159,255,0.08); }
+  .s-landed    { color:var(--muted); border:1px solid #2a2a2a; }
+  .s-default   { color:var(--muted); border:1px solid #222; }
+
+  /* ── DEMO NOTICE ── */
+  #demo-notice {
+    background: rgba(255,179,0,0.05);
+    border: 1px solid var(--amber-dim);
+    border-radius: 3px;
+    padding: 5px 12px;
+    font-family: var(--ui-font);
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--amber-dim);
+    text-align: center;
+    margin: 6px 0 3px;
+  }
+
+  /* ── OVERLAY ── */
+  #overlay {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:14px; pointer-events:none; z-index:20;
+  }
+  #overlay.hidden { display:none; }
+  #overlay-msg {
+    font-family:var(--ui-font); font-size:13px;
+    letter-spacing:2px; color:var(--muted); text-transform:uppercase;
+  }
+  .spinner {
+    width:30px; height:30px;
+    border:2px solid #222; border-top-color:var(--amber);
+    border-radius:50%; animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media (max-width:700px) {
+    .flap { width:20px; height:36px; }
+    .flap-half span { font-size:16px; line-height:36px; height:36px; }
+    .flap-half.bot span { top:-18px; }
+    :root { --row-h:46px; }
+    #api-key-input { width:120px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">Flight<span>Board</span></div>
+  <select id="airport-select"></select>
+  <div id="clock">--:--:--</div>
+</div>
+
+<!-- CONTROLS -->
+<div id="controls">
+  <button class="pill-btn active" data-mode="departures">Departures</button>
+  <button class="pill-btn" data-mode="arrivals">Arrivals</button>
+  <div class="vdiv"></div>
+  <select id="terminal-filter"><option value="">All Terminals</option></select>
+
+  <div id="right-controls">
+    <span id="last-upd"></span>
+    <select id="interval-select" title="Auto-refresh interval">
+      <option value="60">1 min</option>
+      <option value="300" selected>5 min</option>
+      <option value="900">15 min</option>
+      <option value="0">Never</option>
+    </select>
+    <div id="refresh-ring" title="Click to refresh now">
+      <svg width="30" height="30" viewBox="0 0 30 30">
+        <circle id="ring-track" cx="15" cy="15" r="11"/>
+        <circle id="ring-fill"  cx="15" cy="15" r="11"/>
+      </svg>
+      <span id="ring-label">↺</span>
+    </div>
+    <input id="api-key-input" type="text" placeholder="AirLabs API Key"
+           autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="fetch-btn" class="ctrl-btn">Load</button>
+  </div>
+</div>
+
+<!-- COLUMN HEADERS — 8 data cols + 7 gap cols = 15 total -->
+<div id="col-headers">
+  <div class="col-hdr">Flight</div>     <div></div>
+  <div class="col-hdr">Airline</div>       <div></div>
+  <div class="col-hdr">City</div>          <div></div>
+  <div></div>
+  <div class="col-hdr">Aircraft</div>   <div></div>
+  <div class="col-hdr">Scheduled</div>  <div></div>
+  <div class="col-hdr">Actual</div>     <div></div>
+  <div class="col-hdr">Gate</div>       <div></div>
+  <div class="col-hdr">Status</div>
+</div>
+
+<!-- BOARD -->
+<div id="board-wrap">
+  <div id="demo-notice">⚠ DEMO MODE — Enter your AirLabs API key and tap Load for live data</div>
+  <div id="flight-list"></div>
+  <div id="overlay">
+    <div class="spinner"></div>
+    <div id="overlay-msg">Loading…</div>
+  </div>
+</div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const AIRPORTS = [
+  // ── Home airports ──
+  { iata:'RDU', name:'Raleigh-Durham International' },
+  { iata:'BOS', name:'Logan International' },
+  { iata:'EVN', name:'Zvartnots International' },
+  { iata:'FLL', name:'Fort Lauderdale-Hollywood' },
+  // ── All others (A→Z) ──
+  { iata:'ABQ', name:'Albuquerque International' },
+  { iata:'ALB', name:'Albany International' },
+  { iata:'AMS', name:'Amsterdam Schiphol' },
+  { iata:'ATL', name:'Hartsfield-Jackson Atlanta' },
+  { iata:'AUS', name:'Austin-Bergstrom' },
+  { iata:'AVL', name:'Asheville Regional' },
+  { iata:'BCN', name:'Barcelona El Prat' },
+  { iata:'BDL', name:'Bradley International' },
+  { iata:'BHM', name:'Birmingham-Shuttlesworth' },
+  { iata:'BNA', name:'Nashville International' },
+  { iata:'BOG', name:'El Dorado International' },
+  { iata:'BOI', name:'Boise Airport' },
+  { iata:'BUF', name:'Buffalo Niagara' },
+  { iata:'BWI', name:'Baltimore/Washington' },
+  { iata:'CAE', name:'Columbia Metropolitan' },
+  { iata:'CDG', name:'Paris Charles de Gaulle' },
+  { iata:'CHS', name:'Charleston International' },
+  { iata:'CLE', name:'Cleveland Hopkins' },
+  { iata:'CLT', name:'Charlotte Douglas' },
+  { iata:'CMH', name:'John Glenn Columbus' },
+  { iata:'CUN', name:'Cancun International' },
+  { iata:'CVG', name:'Cincinnati/N Kentucky' },
+  { iata:'DAB', name:'Daytona Beach International' },
+  { iata:'DAL', name:'Dallas Love Field' },
+  { iata:'DCA', name:'Ronald Reagan Washington' },
+  { iata:'DEN', name:'Denver International' },
+  { iata:'DFW', name:'Dallas/Fort Worth' },
+  { iata:'DOH', name:'Hamad International' },
+  { iata:'DSM', name:'Des Moines International' },
+  { iata:'DTW', name:'Detroit Metropolitan' },
+  { iata:'DXB', name:'Dubai International' },
+  { iata:'ELP', name:'El Paso International' },
+  { iata:'EWR', name:'Newark Liberty' },
+  { iata:'EZE', name:'Ezeiza International' },
+  { iata:'FAY', name:'Fayetteville Regional' },
+  { iata:'FCO', name:'Rome Fiumicino' },
+  { iata:'FRA', name:'Frankfurt Airport' },
+  { iata:'GDL', name:'Guadalajara International' },
+  { iata:'GEG', name:'Spokane International' },
+  { iata:'GNV', name:'Gainesville Regional' },
+  { iata:'GRR', name:'Gerald R. Ford International' },
+  { iata:'GRU', name:'Sao Paulo Guarulhos' },
+  { iata:'GSO', name:'Piedmont Triad International' },
+  { iata:'GSP', name:'Greenville-Spartanburg' },
+  { iata:'HKG', name:'Hong Kong International' },
+  { iata:'HND', name:'Tokyo Haneda' },
+  { iata:'HOU', name:'William P Hobby' },
+  { iata:'HSV', name:'Huntsville International' },
+  { iata:'HVN', name:'Tweed New Haven' },
+  { iata:'IAD', name:'Washington Dulles' },
+  { iata:'IAH', name:'George Bush Intercontinental' },
+  { iata:'ICN', name:'Seoul Incheon' },
+  { iata:'ILM', name:'Wilmington International' },
+  { iata:'IND', name:'Indianapolis International' },
+  { iata:'IST', name:'Istanbul Airport' },
+  { iata:'JAX', name:'Jacksonville International' },
+  { iata:'JFK', name:'John F Kennedy International' },
+  { iata:'LAS', name:'Harry Reid International' },
+  { iata:'LAX', name:'Los Angeles International' },
+  { iata:'LEX', name:'Blue Grass Airport' },
+  { iata:'LGA', name:'LaGuardia' },
+  { iata:'LGW', name:'London Gatwick' },
+  { iata:'LHR', name:'London Heathrow' },
+  { iata:'LIM', name:'Jorge Chavez International' },
+  { iata:'LIN', name:'Milan Linate' },
+  { iata:'MAD', name:'Madrid Barajas' },
+  { iata:'MCI', name:'Kansas City International' },
+  { iata:'MCO', name:'Orlando International' },
+  { iata:'MDW', name:'Chicago Midway' },
+  { iata:'MEL', name:'Melbourne Airport' },
+  { iata:'MEM', name:'Memphis International' },
+  { iata:'MEX', name:'Mexico City International' },
+  { iata:'MHT', name:'Manchester-Boston Regional' },
+  { iata:'MIA', name:'Miami International' },
+  { iata:'MKE', name:'Milwaukee Mitchell' },
+  { iata:'MLB', name:'Melbourne Orlando International' },
+  { iata:'MSN', name:'Dane County Regional' },
+  { iata:'MSP', name:'Minneapolis-Saint Paul' },
+  { iata:'MSY', name:'Louis Armstrong New Orleans' },
+  { iata:'MUC', name:'Munich Airport' },
+  { iata:'MXP', name:'Milan Malpensa' },
+  { iata:'NRT', name:'Tokyo Narita' },
+  { iata:'OAJ', name:'Albert J Ellis Airport' },
+  { iata:'OAK', name:'Oakland International' },
+  { iata:'OKC', name:'Will Rogers World' },
+  { iata:'OMA', name:'Eppley Airfield' },
+  { iata:'ORD', name:"O'Hare International" },
+  { iata:'ORF', name:'Norfolk International' },
+  { iata:'PBI', name:'Palm Beach International' },
+  { iata:'PDX', name:'Portland International' },
+  { iata:'PEK', name:'Beijing Capital' },
+  { iata:'PHL', name:'Philadelphia International' },
+  { iata:'PHX', name:'Phoenix Sky Harbor' },
+  { iata:'PIT', name:'Pittsburgh International' },
+  { iata:'PNS', name:'Pensacola International' },
+  { iata:'PVD', name:'T.F. Green Airport' },
+  { iata:'PVG', name:'Shanghai Pudong' },
+  { iata:'QRO', name:'Queretaro International' },
+  { iata:'RIC', name:'Richmond International' },
+  { iata:'ROC', name:'Rochester Greater' },
+  { iata:'RSW', name:'Southwest Florida International' },
+  { iata:'SAN', name:'San Diego International' },
+  { iata:'SAT', name:'San Antonio International' },
+  { iata:'SAV', name:'Savannah/Hilton Head' },
+  { iata:'SCL', name:'Santiago International' },
+  { iata:'SDF', name:'Louisville Muhammad Ali' },
+  { iata:'SEA', name:'Seattle-Tacoma' },
+  { iata:'SFO', name:'San Francisco International' },
+  { iata:'SIN', name:'Singapore Changi' },
+  { iata:'SJC', name:'San Jose International' },
+  { iata:'SJU', name:'Luis Munoz Marin International' },
+  { iata:'SLC', name:'Salt Lake City International' },
+  { iata:'SNA', name:'John Wayne Airport' },
+  { iata:'SRQ', name:'Sarasota-Bradenton' },
+  { iata:'STL', name:'St. Louis Lambert' },
+  { iata:'SYD', name:'Sydney Kingsford Smith' },
+  { iata:'SYR', name:'Syracuse Hancock' },
+  { iata:'TLH', name:'Tallahassee International' },
+  { iata:'TPA', name:'Tampa International' },
+  { iata:'TUC', name:'Tucson International' },
+  { iata:'TUL', name:'Tulsa International' },
+  { iata:'TYS', name:'McGhee Tyson Airport' },
+  { iata:'VIE', name:'Vienna International' },
+  { iata:'VPS', name:'Destin-Fort Walton Beach' },
+  { iata:'YUL', name:'Montreal-Trudeau' },
+  { iata:'YVR', name:'Vancouver International' },
+  { iata:'YYC', name:'Calgary International' },
+  { iata:'YYZ', name:'Toronto Pearson' },
+  { iata:'ZRH', name:'Zurich Airport' },
+];
+
+const AIRLINE = {
+  '9E':'Endeavor Air',
+  AA:'American',      AC:'Air Canada',    AF:'Air France',    AM:'Aeromexico',
+  AS:'Alaska',        AV:'Avianca',       B6:'JetBlue',       BA:'British Airways',
+  CM:'Copa Airlines', DL:'Delta',         EI:'Aer Lingus',    EK:'Emirates',
+  F9:'Frontier',      G4:'Allegiant',     IB:'Iberia',        JL:'Japan Airlines',
+  KE:'Korean Air',    KL:'KLM',           LA:'LATAM Airlines',LH:'Lufthansa',
+  LX:'Swiss Intl',    MQ:'Envoy Air',     MX:'Breeze',        NK:'Spirit',
+  OH:'PSA Airlines',  QK:'Air Canada Jazz', QR:'Qatar Airways', SK:'SAS',
+  SQ:'Singapore Air', SY:'Sun Country',   TK:'Turkish Airlines', UA:'United',
+  VS:'Virgin Atlantic', WN:'Southwest',   WS:'WestJet',       XP:'Avelo',
+  Y4:'Volaris',       YX:'Republic Airways',
+};
+
+
+
+
+// ─── CODESHARE PREFERENCES ───────────────────────────────────────────────────
+// When multiple records share the same physical flight leg (codeshares),
+// the airline whose IATA code appears earliest in this list wins.
+// Airlines not listed are treated as lowest priority (keep first-returned).
+const CODESHARE_PREF = [
+  'B6',   // JetBlue
+  '9E',   // Endeavor Air
+  'OH',   // PSA Airlines
+  'MQ',   // Envoy Air
+  'YX',   // Republic Airways
+  'AA',   // American
+  'DL',   // Delta
+  'UA',   // United
+  'WN',   // Southwest
+  'AS',   // Alaska
+  'NK',   // Spirit
+  'F9',   // Frontier
+  'G4',   // Allegiant
+  'MX',   // Breeze
+  'XP',   // Avelo
+  'SY',   // Sun Country
+  'QK',   // Air Canada Jazz
+  'AC',   // Air Canada
+  'WS',   // WestJet
+  'BA',   // British Airways
+  'LH',   // Lufthansa
+  'LX',   // Swiss International
+  'AF',   // Air France
+  'KL',   // KLM
+  'EK',   // Emirates
+  'QR',   // Qatar Airways
+  'TK',   // Turkish Airlines
+  'SQ',   // Singapore Air
+  'KE',   // Korean Air
+  'JL',   // Japan Airlines
+  'CM',   // Copa Airlines
+  'LA',   // LATAM Airlines
+  'AV',   // Avianca
+  'EI',   // Aer Lingus
+  'Y4',   // Volaris
+];
+const CITY = {
+  ABQ:'Albuquerque',  ALB:'Albany',  AMS:'Amsterdam',  ATL:'Atlanta',
+  AUS:'Austin',  AVL:'Asheville',  BCN:'Barcelona',  BDL:'Hartford',
+  BHM:'Birmingham',  BNA:'Nashville',  BOG:'Bogota',  BOI:'Boise',
+  BOS:'Boston',  BUF:'Buffalo',  BWI:'Baltimore',  CAE:'Columbia SC',
+  CDG:'Paris',  CHS:'Charleston',  CLE:'Cleveland',  CLT:'Charlotte',
+  CMH:'Columbus',  CUN:'Cancun',  CVG:'Cincinnati',  DAB:'Daytona Bch',
+  DAL:'Dallas',  DCA:'Wash-Reagan',  DEN:'Denver',  DFW:'Dallas',
+  DOH:'Doha',  DSM:'Des Moines',  DTW:'Detroit',  DXB:'Dubai',
+  ELP:'El Paso',  EVN:'Yerevan',  EWR:'Newark',  EZE:'Buenos Aires',
+  FAY:'Fayetteville',  FCO:'Rome',  FLL:'Ft Lauderdale',  FRA:'Frankfurt',
+  GDL:'Guadalajara',  GEG:'Spokane',  GNV:'Gainesville',  GRR:'Grand Rapids',
+  GRU:'Sao Paulo',  GSO:'Greensboro',  GSP:'Greenville',  HKG:'Hong Kong',
+  HND:'Tokyo',  HOU:'Houston',  HSV:'Huntsville',  HVN:'New Haven',
+  IAD:'Wash-Dulles',  IAH:'Houston',  ICN:'Seoul',  ILM:'Wilmington NC',
+  IND:'Indianapolis',  IST:'Istanbul',  JAX:'Jacksonville',  JFK:'New York',
+  LAS:'Las Vegas',  LAX:'Los Angeles',  LEX:'Lexington',  LGA:'NY-LaGuardia',
+  LGW:'London',  LHR:'London',  LIM:'Lima',  LIN:'Milan',
+  MAD:'Madrid',  MCI:'Kansas City',  MCO:'Orlando',  MDW:'Chicago',
+  MEL:'Melbourne',  MEM:'Memphis',  MEX:'Mexico City',  MHT:'Manchester',
+  MIA:'Miami',  MKE:'Milwaukee',  MLB:'Melbourne FL',  MSN:'Madison',
+  MSP:'Minneapolis',  MSY:'New Orleans',  MUC:'Munich',  MXP:'Milan',
+  NRT:'Tokyo',  OAJ:'Jacksonville NC',  OAK:'Oakland',  OKC:'Oklahoma City',
+  OMA:'Omaha',  ORD:'Chicago',  ORF:'Norfolk',  PBI:'W Palm Beach',
+  PDX:'Portland',  PEK:'Beijing',  PHL:'Philadelphia',  PHX:'Phoenix',
+  PIT:'Pittsburgh',  PNS:'Pensacola',  PVD:'Providence',  PVG:'Shanghai',
+  QRO:'Queretaro',  RDU:'Raleigh',  RIC:'Richmond',  ROC:'Rochester',
+  RSW:'Fort Myers',  SAN:'San Diego',  SAT:'San Antonio',  SAV:'Savannah',
+  SCL:'Santiago',  SDF:'Louisville',  SEA:'Seattle',  SFO:'San Francisco',
+  SIN:'Singapore',  SJC:'San Jose',  SJU:'San Juan PR',  SLC:'Salt Lake City',
+  SNA:'Orange County',  SRQ:'Sarasota',  STL:'St Louis',  SYD:'Sydney',
+  SYR:'Syracuse',  TLH:'Tallahassee',  TPA:'Tampa',  TUC:'Tucson',
+  TUL:'Tulsa',  TYS:'Knoxville',  VIE:'Vienna',  VPS:'Destin',
+  YUL:'Montreal',  YVR:'Vancouver',  YYC:'Calgary',  YYZ:'Toronto',
+  ZRH:'Zurich',  HPN:'Westchester',
+};
+const RING_R    = 11;
+const RING_CIRC = 2 * Math.PI * RING_R; // ≈ 69.1
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S = {
+  airport:      'RDU',
+  mode:         'departures',
+  terminal:     '',
+  apiKey:       localStorage.getItem('fb_apikey') || '',
+  flights:      [],
+  demo:         true,
+  refreshSec:   300,    // current interval (0 = never)
+  cdTimer:      null,   // countdown setInterval
+  cdSec:        300,
+  audioCtx:     null,
+};
+
+// ─── AUDIO ───────────────────────────────────────────────────────────────────
+function ensureAudio() {
+  if (!S.audioCtx) {
+    try { S.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return false; }
+  }
+  if (S.audioCtx.state === 'suspended') S.audioCtx.resume();
+  return true;
+}
+
+// Single mechanical flap click at a given future time offset (ms)
+function scheduleClick(offsetMs) {
+  if (!ensureAudio()) return;
+  const ctx = S.audioCtx;
+  const t   = ctx.currentTime + offsetMs / 1000;
+
+  // Short burst of shaped noise — the "card hitting the stop" sound
+  const dur    = 0.022;
+  const bufLen = Math.floor(ctx.sampleRate * dur);
+  const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const d      = buf.getChannelData(0);
+  for (let i = 0; i < bufLen; i++) {
+    // noise envelope: sharp attack, fast exponential decay
+    const env = Math.pow(1 - i / bufLen, 3.0);
+    d[i] = (Math.random() * 2 - 1) * env;
+  }
+
+  const src  = ctx.createBufferSource();
+  src.buffer = buf;
+
+  // bandpass ~3 kHz — plastic card click
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 3000;
+  bp.Q.value = 0.9;
+
+  // gentle high-shelf cut to soften harsh highs
+  const hs = ctx.createBiquadFilter();
+  hs.type = 'highshelf';
+  hs.frequency.value = 6000;
+  hs.gain.value = -8;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.4, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+
+  src.connect(bp); bp.connect(hs); hs.connect(gain); gain.connect(ctx.destination);
+  src.start(t);
+  src.stop(t + dur + 0.01);
+}
+
+// Cascade of clicks spread across a board flip
+function playFlipSound(numFlaps) {
+  if (!ensureAudio()) return;
+  const spread = Math.min(numFlaps * 22, 700);
+  const count  = Math.min(numFlaps, 60); // cap scheduled nodes
+  for (let i = 0; i < count; i++) {
+    const delay = (i / count) * spread + Math.random() * 30;
+    scheduleClick(delay);
+  }
+}
+
+// ─── DEMO DATA ────────────────────────────────────────────────────────────────
+function demoFlights(airport, mode) {
+  const now    = new Date();
+  const fmt    = d => d.toTimeString().slice(0,5);
+  const add    = (d,m) => new Date(d.getTime() + m*60000);
+  const DESTS  = ['ATL','JFK','LAX','ORD','BOS','DFW','MIA','DEN','SFO','SEA','PHX','LGA'];
+  const TPL = [
+    {fl:'AA1234',al:'AA',ac:'B738',term:'1',gate:'A12',delay:0,  st:'scheduled'},
+    {fl:'DL567', al:'DL',ac:'A321',term:'1',gate:'B7', delay:25, st:'delayed'  },
+    {fl:'UA890', al:'UA',ac:'B772',term:'2',gate:'C3', delay:0,  st:'boarding' },
+    {fl:'WN210', al:'WN',ac:'B737',term:'2',gate:'D14',delay:0,  st:'on-time'  },
+    {fl:'B6445', al:'B6',ac:'A320',term:'1',gate:'A5', delay:15, st:'delayed'  },
+    {fl:'NK88',  al:'NK',ac:'A319',term:'1',gate:'B2', delay:0,  st:'scheduled'},
+    {fl:'F9701', al:'F9',ac:'A21N',term:'2',gate:'C9', delay:0,  st:'landed'   },
+    {fl:'AS334', al:'AS',ac:'B739',term:'1',gate:'A18',delay:0,  st:'active'   },
+    {fl:'G4229', al:'G4',ac:'B752',term:'2',gate:'D1', delay:90, st:'delayed'  },
+    {fl:'AA2100',al:'AA',ac:'B788',term:'1',gate:'A22',delay:0,  st:'cancelled'},
+    {fl:'DL1099',al:'DL',ac:'CRJ9',term:'2',gate:'B11',delay:0,  st:'scheduled'},
+    {fl:'UA2310',al:'UA',ac:'A319',term:'1',gate:'C6', delay:45, st:'delayed'  },
+  ];
+  return TPL.map((t,i) => {
+    const s = add(now, -45 + i*25); // -45min to +4hr 20min window
+    const o = DESTS[i % DESTS.length];
+    return {
+      flight_iata:   t.fl,
+      airline_iata:  t.al,
+      aircraft_icao: t.ac,
+      dep_terminal:  mode==='departures' ? t.term : '',
+      arr_terminal:  mode==='arrivals'   ? t.term : '',
+      dep_gate:      mode==='departures' ? t.gate : '',
+      arr_gate:      mode==='arrivals'   ? t.gate : '',
+      dep_time:      mode==='departures' ? fmt(s) : fmt(add(s,-180)),
+      arr_time:      mode==='arrivals'   ? fmt(s) : fmt(add(s, 120)),
+      dep_estimated: t.delay ? fmt(add(s,t.delay)) : null,
+      arr_estimated: t.delay ? fmt(add(s,t.delay)) : null,
+      dep_iata:      mode==='departures' ? airport : o,
+      arr_iata:      mode==='arrivals'   ? airport : o,
+      status:        t.st,
+      delayed:       t.delay,
+    };
+  });
+}
+
+// ─── DOM ─────────────────────────────────────────────────────────────────────
+const $airportSel = document.getElementById('airport-select');
+const $modeBtns   = document.querySelectorAll('.pill-btn[data-mode]');
+const $termSel    = document.getElementById('terminal-filter');
+const $apiKey     = document.getElementById('api-key-input');
+const $fetchBtn   = document.getElementById('fetch-btn');
+const $list       = document.getElementById('flight-list');
+const $overlay    = document.getElementById('overlay');
+const $overlayMsg = document.getElementById('overlay-msg');
+const $demo       = document.getElementById('demo-notice');
+const $ringFill   = document.getElementById('ring-fill');
+const $ringLabel  = document.getElementById('ring-label');
+const $lastUpd    = document.getElementById('last-upd');
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  AIRPORTS.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.iata;
+    o.textContent = `${a.iata} — ${a.name}`;
+    $airportSel.appendChild(o);
+  });
+  $airportSel.value = S.airport;
+  if (S.apiKey) $apiKey.value = S.apiKey;
+
+  setInterval(tickClock, 1000);
+  tickClock();
+
+  S.flights = demoFlights(S.airport, S.mode);
+  updateTermFilter(S.flights);
+  renderFlights(true);
+  hideOverlay();
+  startCountdown();
+}
+
+function tickClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ─── COUNTDOWN ───────────────────────────────────────────────────────────────
+function startCountdown() {
+  clearInterval(S.cdTimer);
+  if (S.refreshSec === 0) {
+    // "Never" — fill ring dim, no countdown
+    $ringFill.style.strokeDashoffset = 0;
+    $ringFill.style.stroke = 'var(--amber-dim)';
+    return;
+  }
+  S.cdSec = S.refreshSec;
+  setRing(S.refreshSec);
+  S.cdTimer = setInterval(() => {
+    S.cdSec--;
+    setRing(S.cdSec);
+    if (S.cdSec <= 0) { clearInterval(S.cdTimer); load(); }
+  }, 1000);
+}
+
+function setRing(sec) {
+  const frac = Math.max(0, sec / S.refreshSec);
+  $ringFill.style.strokeDashoffset = RING_CIRC * (1 - frac);
+  $ringFill.style.stroke = sec <= 30 ? 'var(--amber)' : 'var(--amber-dim)';
+}
+
+// ─── EVENTS ───────────────────────────────────────────────────────────────────
+$airportSel.addEventListener('change', () => {
+  S.airport = $airportSel.value;
+  S.terminal = ''; $termSel.value = '';
+  load();
+});
+
+$modeBtns.forEach(b => b.addEventListener('click', () => {
+  S.mode = b.dataset.mode;
+  $modeBtns.forEach(x => x.classList.toggle('active', x===b));
+  S.terminal = ''; $termSel.value = '';
+  load();
+}));
+
+$termSel.addEventListener('change', () => {
+  S.terminal = $termSel.value;
+  renderFlights(false);
+});
+
+$fetchBtn.addEventListener('click', () => {
+  const key = $apiKey.value.trim();
+  if (key) {
+    S.apiKey = key;
+    localStorage.setItem('fb_apikey', key);
+    S.demo = false;
+    load();
+  } else {
+    S.demo = true;
+    S.flights = demoFlights(S.airport, S.mode);
+    updateTermFilter(S.flights);
+    renderFlights(true);
+    $demo.textContent = '⚠ DEMO MODE — Enter your AirLabs API key and tap Load for live data';
+    $demo.style.display = 'block';
+    hideOverlay();
+  }
+});
+
+document.getElementById('refresh-ring').addEventListener('click', () => {
+  clearInterval(S.cdTimer);
+  load();
+});
+
+document.getElementById('interval-select').addEventListener('change', function() {
+  S.refreshSec = parseInt(this.value, 10);
+  clearInterval(S.cdTimer);
+  startCountdown();
+});
+
+// ─── LOAD ─────────────────────────────────────────────────────────────────────
+async function load() {
+  clearInterval(S.cdTimer);
+
+  if (!S.apiKey) {
+    S.demo = true;
+    S.flights = demoFlights(S.airport, S.mode);
+    updateTermFilter(S.flights);
+    renderFlights(true);
+    $demo.style.display = 'block';
+    hideOverlay();
+    startCountdown();
+    return;
+  }
+
+  showOverlay('Loading flights…');
+  try {
+    const p   = S.mode === 'departures' ? `dep_iata=${S.airport}` : `arr_iata=${S.airport}`;
+    const url = `https://airlabs.co/api/v9/schedules?${p}&api_key=${S.apiKey}`;
+    const res = await fetch(url);
+    const js  = await res.json();
+    if (js.error) throw new Error(js.error.message || 'API error');
+
+    // Deduplicate: AirLabs returns the same physical flight multiple times —
+    // as operating carrier + codeshare partner(s), sometimes with different
+    // flight_iata values. Fingerprint each leg by dep airport + arr airport +
+    // scheduled time — that uniquely identifies one physical departure.
+    // Pre-sort by CODESHARE_PREF so the preferred airline wins the dedup.
+    const roleKey = S.mode === 'departures' ? 'dep_iata' : 'arr_iata';
+    const allLegs = (js.response || []).filter(f =>
+      (f[roleKey] || '').toUpperCase() === S.airport.toUpperCase()
+    );
+    allLegs.sort((a, b) => {
+      const ai = CODESHARE_PREF.indexOf(a.airline_iata);
+      const bi = CODESHARE_PREF.indexOf(b.airline_iata);
+      const ap = ai === -1 ? 999 : ai;
+      const bp = bi === -1 ? 999 : bi;
+      return ap - bp;
+    });
+    const seen = new Set();
+    S.flights = allLegs.filter(f => {
+      const t = S.mode === 'departures' ? (f.dep_time || '') : (f.arr_time || '');
+      const key = `${f.dep_iata}|${f.arr_iata}|${t}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    S.demo = false;
+    $demo.style.display = 'none';
+    const t = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});
+    $lastUpd.textContent = `UPD ${t}`;
+    updateTermFilter(S.flights);
+    renderFlights(true);
+    hideOverlay();
+  } catch(err) {
+    S.demo = true;
+    S.flights = demoFlights(S.airport, S.mode);
+    updateTermFilter(S.flights);
+    renderFlights(true);
+    $demo.textContent = `⚠ API error — demo data shown (${err.message})`;
+    $demo.style.display = 'block';
+    hideOverlay();
+  }
+  startCountdown();
+}
+
+// ─── TERMINAL FILTER ─────────────────────────────────────────────────────────
+function updateTermFilter(flights) {
+  const key   = S.mode === 'departures' ? 'dep_terminal' : 'arr_terminal';
+  const terms = [...new Set(flights.map(f=>f[key]).filter(Boolean))].sort();
+  $termSel.innerHTML = '<option value="">All Terminals</option>';
+  terms.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = `Terminal ${t}`;
+    $termSel.appendChild(o);
+  });
+  if (S.terminal && terms.includes(S.terminal)) $termSel.value = S.terminal;
+  else S.terminal = '';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderFlights(animate) {
+  const termKey  = S.mode==='departures' ? 'dep_terminal'  : 'arr_terminal';
+  const gateKey  = S.mode==='departures' ? 'dep_gate'      : 'arr_gate';
+  const schedKey = S.mode==='departures' ? 'dep_time'      : 'arr_time';
+  const estKey   = S.mode==='departures' ? 'dep_estimated' : 'arr_estimated';
+  const destKey  = S.mode==='departures' ? 'arr_iata'      : 'dep_iata';
+
+  let flights = S.flights;
+  if (S.terminal) flights = flights.filter(f => f[termKey]===S.terminal);
+
+  // Time window: -45 min to +4 hr from now
+  const _now   = new Date();
+  const nowMin = _now.getHours() * 60 + _now.getMinutes();
+  flights = flights.filter(f => {
+    const m = toMin(f[schedKey]);
+    return m !== 99*60+99 && m >= nowMin - 45 && m <= nowMin + 240;
+  });
+
+  flights = flights.slice().sort((a,b) => toMin(a[schedKey]) - toMin(b[schedKey]));
+
+  if (!flights.length) { $list.innerHTML=''; showOverlay('No flights found'); return; }
+  hideOverlay();
+
+  const frag = document.createDocumentFragment();
+  let totalFlaps = 0;
+
+  flights.forEach((f, idx) => {
+    const id       = f.flight_iata || `r${idx}`;
+    const sched    = fmtTime(f[schedKey]) || '--:--';
+    const actual   = fmtTime(f[estKey])   || sched;
+    const airline  = (AIRLINE[f.airline_iata] || f.airline_iata || '?').slice(0,12);
+    const destCode = (f[destKey] || '---').toUpperCase();
+    const cityName = (CITY[destCode] || destCode).slice(0,12);
+    const aircraft = (f.aircraft_icao || '---').slice(0,5);
+    const gate     = (f[gateKey]  || '---').slice(0,4);
+    const status   = mapStatus(f);
+
+    // 15 grid cells: 8 data + 7 gaps
+    const dataCols = [
+      pad(id,       7),   // 0  flight
+      pad(airline,  12),  // 2  airline name
+      pad(cityName, 12),  // 4  destination city
+      pad(aircraft, 3),   // 6  aircraft
+      pad(sched,    5),   // 8  scheduled
+      pad(actual,   5),   // 10 actual
+      pad(gate,     4),   // 12 gate
+    ];
+    totalFlaps += dataCols.reduce((s,c)=>s+c.length, 0);
+
+    const row = document.createElement('div');
+    row.className = 'flight-row';
+    row.dataset.id = id;
+
+    // build 15 cells
+    for (let ci = 0; ci < 15; ci++) {
+      const cell = document.createElement('div');
+      if (ci === 14) {
+        // status
+        cell.style.cssText = 'display:flex;align-items:center;';
+        cell.innerHTML = `<span class="status-badge ${sClass(status)}">${status}</span>`;
+      } else if (ci % 2 === 1) {
+        // gap — empty
+      } else {
+        const di = ci / 2;
+        cell.className   = 'flap-cell';
+        cell.dataset.val = dataCols[di];
+      }
+      row.appendChild(cell);
+    }
+    frag.appendChild(row);
+  });
+
+  $list.innerHTML = '';
+  $list.appendChild(frag);
+
+  if (animate) playFlipSound(totalFlaps);
+
+  $list.querySelectorAll('.flap-cell').forEach(cell => {
+    buildFlaps(cell, cell.dataset.val, animate);
+  });
+}
+
+// ─── FLAP BUILDER ────────────────────────────────────────────────────────────
+function buildFlaps(cell, text, animate) {
+  cell.innerHTML = '';
+  [...text].forEach((ch, i) => {
+    const el  = document.createElement('div');
+    el.className = 'flap';
+    const safe = ch===' ' ? '&nbsp;' : esc(ch);
+    el.innerHTML =
+      `<div class="flap-half top"><span>${safe}</span></div>` +
+      `<div class="flap-half bot"><span>${safe}</span></div>`;
+    if (animate) {
+      const delay = i * 22 + Math.random() * 30;
+      setTimeout(() => {
+        el.classList.add('flipping');
+        setTimeout(() => el.classList.remove('flipping'), 280);
+      }, delay);
+    }
+    cell.appendChild(el);
+  });
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function fmtTime(t) {
+  if (!t) return '';
+  return t.includes(' ') ? t.slice(11,16) : t.slice(0,5);
+}
+function toMin(t) {
+  const s = fmtTime(t||'99:99');
+  const [h=99,m=99] = s.split(':').map(Number);
+  return h*60+m;
+}
+function pad(s,n)  { return String(s).padEnd(n,' ').slice(0,n); }
+function esc(s)    { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function mapStatus(f) {
+  const s = (f.status||'').toLowerCase();
+  if (s==='cancelled')          return 'CANCELLED';
+  if (s==='landed')             return 'LANDED';
+  if (s==='active')             return 'EN ROUTE';
+  if (s==='boarding')           return 'BOARDING';
+  if (f.delayed && f.delayed>0) return 'DELAYED';
+  if (s==='on-time')            return 'ON TIME';
+  return 'SCHEDULED';
+}
+function sClass(s) {
+  if (s==='ON TIME'||s==='EN ROUTE') return 's-ontime';
+  if (s==='DELAYED')   return 's-delayed';
+  if (s==='CANCELLED') return 's-cancelled';
+  if (s==='BOARDING')  return 's-boarding';
+  if (s==='LANDED')    return 's-landed';
+  return 's-default';
+}
+
+function showOverlay(msg) { $overlayMsg.textContent=msg; $overlay.classList.remove('hidden'); }
+function hideOverlay()    { $overlay.classList.add('hidden'); }
+
+// ─── GO ───────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
