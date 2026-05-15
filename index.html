@@ -808,7 +808,7 @@ async function load() {
   showOverlay('Loading flights…');
   try {
     const p   = S.mode === 'departures' ? `dep_iata=${S.airport}` : `arr_iata=${S.airport}`;
-    const url = `https://airlabs.co/api/v9/schedules?${p}&api_key=${S.apiKey}`;
+    const url = `https://airlabs.co/api/v9/schedules?${p}&api_key=${S.apiKey}&limit=300`;
     const res = await fetch(url);
     const js  = await res.json();
     if (js.error) throw new Error(js.error.message || 'API error');
