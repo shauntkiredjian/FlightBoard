@@ -238,14 +238,14 @@
   }
   .col-gap { -webkit-flex-shrink: 0; flex-shrink: 0; overflow: hidden; }
 
-  /* Column widths: flight=180 gap=28 airline=310 gap=28 city=310 gap=28 aircraft=76 gap=28 sched=128 gap=28 actual=128 gap=28 gate=102 gap=28 status=1fr */
+  /* Column widths: flight=180 gap=28 airline=310 gap=28 city=310 gap=28 gate=102 gap=28 sched=128 gap=28 actual=128 gap=28 aircraft=76 gap=28 status=1fr */
   .ch-flight   { width: 180px; }
   .ch-airline  { width: 310px; }
   .ch-city     { width: 310px; }
-  .ch-aircraft { width: 76px; }
+  .ch-gate     { width: 102px; }
   .ch-sched    { width: 128px; }
   .ch-actual   { width: 128px; }
-  .ch-gate     { width: 102px; }
+  .ch-aircraft { width: 76px; }
   .ch-status   { -webkit-flex: 1; flex: 1; }
   .ch-gap      { width: 28px; }
 
@@ -298,10 +298,10 @@
   .row-flight   { width: 180px; -webkit-flex-shrink:0; flex-shrink:0; }
   .row-airline  { width: 310px; -webkit-flex-shrink:0; flex-shrink:0; }
   .row-city     { width: 310px; -webkit-flex-shrink:0; flex-shrink:0; }
-  .row-aircraft { width: 76px;  -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-gate     { width: 102px; -webkit-flex-shrink:0; flex-shrink:0; }
   .row-sched    { width: 128px; -webkit-flex-shrink:0; flex-shrink:0; }
   .row-actual   { width: 128px; -webkit-flex-shrink:0; flex-shrink:0; }
-  .row-gate     { width: 102px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-aircraft { width: 76px;  -webkit-flex-shrink:0; flex-shrink:0; }
   .row-status   { -webkit-flex:1; flex:1; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; }
   .row-gap      { width: 28px;  -webkit-flex-shrink:0; flex-shrink:0; }
 
@@ -734,7 +734,7 @@ function demoFlights(airport, mode) {
     {fl:'UA890', al:'UA',ac:'B772',term:'2',gate:'C3', delay:0,  st:'boarding' },
     {fl:'WN210', al:'WN',ac:'B737',term:'2',gate:'D14',delay:0,  st:'on-time'  },
     {fl:'B6445', al:'B6',ac:'A320',term:'1',gate:'A5', delay:15, st:'delayed'  },
-    {fl:'NK88',  al:'NK',ac:'A319',term:'1',gate:'B2', delay:0,  st:'scheduled'},
+    {fl:'NK88',  al:'NK',ac:'A319',term:'1',gate:'B2', delay:0,  st:'cancelled'},
     {fl:'F9701', al:'F9',ac:'A21N',term:'2',gate:'C9', delay:0,  st:'landed'   },
     {fl:'AS334', al:'AS',ac:'B739',term:'1',gate:'A18',delay:0,  st:'active'   },
     {fl:'G4229', al:'G4',ac:'B752',term:'2',gate:'D1', delay:90, st:'delayed'  },
@@ -1050,10 +1050,10 @@ function renderFlights(animate) {
       pad(id,      7),
       pad(airline, 12),
       pad(city,    12),
-      pad(acft,    3),
+      pad(gate,    4),
       pad(sched,   5),
       pad(actual,  5),
-      pad(gate,    4)
+      pad(acft,    3)
     ];
     var classes = ['row-flight','row-airline','row-city','row-gate','row-sched','row-actual','row-aircraft'];
 
