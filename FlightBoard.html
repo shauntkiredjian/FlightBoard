@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FlightBoard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Oswald:wght@300;400;600&display=swap');
+
+  /* iOS 8 compat: no CSS custom properties — values inlined */
+  * { -webkit-box-sizing: border-box; box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: #0a0a0a;
+    color: #f0ece0;
+    font-family: 'Oswald', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    height: 64px;
+    background: #0d0d0d;
+    border-bottom: 1px solid #1e1e1e;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-align-items: center;
+    align-items: center;
+    padding: 0 20px;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+  }
+  #header > * { margin-right: 14px; }
+  #header > *:last-child { margin-right: 0; }
+
+  .logo {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    color: #ffb300;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .logo span { color: #555; font-weight: 300; }
+
+  #airport-select {
+    background: #1a1a1a;
+    border: 1px solid #7a5500;
+    color: #ffb300;
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+  #airport-select option { background: #1a1a1a; color: #f0ece0; }
+
+  #clock {
+    margin-left: auto;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 20px;
+    color: #ffb300;
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  /* ── CONTROLS ── */
+  #controls {
+    height: 52px;
+    background: #0a0a0a;
+    border-bottom: 1px solid #1a1a1a;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-align-items: center;
+    align-items: center;
+    padding: 0 20px;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #controls > * { margin-right: 8px; }
+  #controls > *:last-child { margin-right: 0; }
+
+  .pill-btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 2px;
+    border: 1px solid #333;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-transition: all 0.15s;
+    transition: all 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .pill-btn.active {
+    border-color: #7a5500;
+    color: #ffb300;
+    background: rgba(255,179,0,0.12);
+  }
+  .vdiv { width:1px; height:22px; background:#2a2a2a; -webkit-flex-shrink:0; flex-shrink:0; }
+
+  #interval-select, #terminal-filter {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    color: #555;
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 5px 10px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+  }
+
+  #right-controls {
+    margin-left: auto;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+  }
+  #right-controls > * { margin-right: 8px; }
+  #right-controls > *:last-child { margin-right: 0; }
+
+  #last-upd {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: #333;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  /* countdown ring */
+  #refresh-ring {
+    position: relative; width:30px; height:30px;
+    -webkit-flex-shrink:0; flex-shrink:0; cursor:pointer;
+    display:-webkit-flex; display:flex;
+    -webkit-align-items:center; align-items:center;
+    -webkit-justify-content:center; justify-content:center;
+  }
+  #refresh-ring svg { position:absolute; top:0; left:0; -webkit-transform:rotate(-90deg); transform:rotate(-90deg); }
+  #ring-track { fill:none; stroke:#222; stroke-width:3; }
+  #ring-fill  {
+    fill:none; stroke:#7a5500; stroke-width:3;
+    stroke-linecap:round;
+    stroke-dasharray:69.1; stroke-dashoffset:0;
+    -webkit-transition:stroke-dashoffset 1s linear, stroke 0.5s;
+    transition:stroke-dashoffset 1s linear, stroke 0.5s;
+  }
+  #ring-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    color: #555;
+    z-index: 1;
+    -webkit-user-select: none;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  #api-key-input {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    color: #f0ece0;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 2px;
+    outline: none;
+    width: 160px;
+  }
+
+  .ctrl-btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    background: rgba(255,179,0,0.12);
+    border: 1px solid #7a5500;
+    color: #ffb300;
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    -webkit-transition: background 0.15s;
+    transition: background 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .ctrl-btn:active { background: rgba(255,179,0,0.28); }
+
+  /* ── COLUMN HEADERS ── */
+  /* iOS 8 has no CSS grid — use a fixed-width flex row instead */
+  #col-headers {
+    background: #000;
+    border-bottom: 2px solid #1e1e1e;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    padding: 0 20px;
+    height: 28px;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+    min-width: -webkit-max-content;
+    min-width: max-content;
+  }
+  .col-hdr {
+    font-family: 'Oswald', sans-serif;
+    font-size: 9px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .col-gap { -webkit-flex-shrink: 0; flex-shrink: 0; overflow: hidden; }
+
+  /* Column widths: flight=180 gap=28 airline=310 gap=28 city=310 gap=28 aircraft=76 gap=28 sched=128 gap=28 actual=128 gap=28 gate=102 gap=28 status=1fr */
+  .ch-flight   { width: 180px; }
+  .ch-airline  { width: 310px; }
+  .ch-city     { width: 310px; }
+  .ch-aircraft { width: 76px; }
+  .ch-sched    { width: 128px; }
+  .ch-actual   { width: 128px; }
+  .ch-gate     { width: 102px; }
+  .ch-status   { -webkit-flex: 1; flex: 1; }
+  .ch-gap      { width: 28px; }
+
+  /* ── BOARD ── */
+  /* Horizontal scroll wrapper — contains col-headers + flight list together */
+  #scroll-wrap {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #board-wrap {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: visible;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 20px 20px;
+    position: relative;
+    min-width: -webkit-max-content;
+    min-width: max-content;
+  }
+
+  /* ── ROW ── */
+  .flight-row {
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    height: 66px;
+    -webkit-align-items: center;
+    align-items: center;
+    border-bottom: 1px solid #161616;
+    position: relative;
+    min-width: -webkit-max-content;
+    min-width: max-content;
+  }
+  .flight-row::after {
+    content:''; position:absolute;
+    left:0; right:0; top:50%;
+    height:1px; background:#141414;
+    pointer-events:none;
+  }
+  .row-flight   { width: 180px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-airline  { width: 310px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-city     { width: 310px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-aircraft { width: 76px;  -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-sched    { width: 128px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-actual   { width: 128px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-gate     { width: 102px; -webkit-flex-shrink:0; flex-shrink:0; }
+  .row-status   { -webkit-flex:1; flex:1; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; }
+  .row-gap      { width: 28px;  -webkit-flex-shrink:0; flex-shrink:0; }
+
+  /* ── FLAP CELL ── */
+  .flap-cell {
+    display: -webkit-flex;
+    display: flex;
+    -webkit-align-items: center;
+    align-items: center;
+    height: 100%;
+    padding: 4px 0;
+  }
+  .flap-cell > .flap { margin-right: 2px; }
+  .flap-cell > .flap:last-child { margin-right: 0; }
+
+  .flap {
+    position: relative;
+    width: 24px; height: 44px;
+    -webkit-perspective: 180px;
+    perspective: 180px;
+    -webkit-flex-shrink: 0;
+    flex-shrink: 0;
+  }
+  .flap-half {
+    position: absolute;
+    width: 100%; height: 50%;
+    overflow: hidden;
+  }
+  .flap-half.top {
+    top: 0;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-bottom: none;
+    border-radius: 2px 2px 0 0;
+  }
+  .flap-half.bot {
+    bottom: 0;
+    background: #111111;
+    border: 1px solid #2a2a2a;
+    border-top: none;
+    border-radius: 0 0 2px 2px;
+  }
+  .flap-half span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 20px;
+    line-height: 44px;
+    color: #ffb300;
+    display: block;
+    text-align: center;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 44px;
+  }
+  .flap-half.bot span { top: -22px; }
+  .flap-mid {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 1px; background: #000;
+    z-index: 10;
+    margin-top: -1px;
+  }
+
+  /* ── FLIP ANIMATION ── */
+  @-webkit-keyframes flipTop {
+    0%   { -webkit-transform: rotateX(0deg); }
+    100% { -webkit-transform: rotateX(-90deg); }
+  }
+  @keyframes flipTop {
+    0%   { transform: rotateX(0deg); }
+    100% { transform: rotateX(-90deg); }
+  }
+  @-webkit-keyframes flipBot {
+    0%   { -webkit-transform: rotateX(90deg); }
+    100% { -webkit-transform: rotateX(0deg); }
+  }
+  @keyframes flipBot {
+    0%   { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+  .flap.flipping .flap-half.top {
+    -webkit-transform-origin: bottom center;
+    transform-origin: bottom center;
+    -webkit-animation: flipTop 0.11s ease-in forwards;
+    animation: flipTop 0.11s ease-in forwards;
+  }
+  .flap.flipping .flap-half.bot {
+    -webkit-transform-origin: top center;
+    transform-origin: top center;
+    -webkit-animation: flipBot 0.11s ease-out 0.09s forwards;
+    animation: flipBot 0.11s ease-out 0.09s forwards;
+  }
+
+  /* ── STATUS BADGE ── */
+  .status-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .s-ontime    { color:#00d97e; border:1px solid rgba(0,217,126,0.3); background:rgba(0,217,126,0.08); }
+  .s-delayed   { color:#ffb300; border:1px solid rgba(255,179,0,0.3); background:rgba(255,179,0,0.12); }
+  .s-cancelled { color:#ff3b3b; border:1px solid rgba(255,59,59,0.3); background:rgba(255,59,59,0.08); }
+  .s-boarding  { color:#4d9fff; border:1px solid rgba(77,159,255,0.3); background:rgba(77,159,255,0.08); }
+  .s-landed    { color:#555; border:1px solid #2a2a2a; }
+  .s-default   { color:#555; border:1px solid #222; }
+
+  /* ── DEMO NOTICE ── */
+  #demo-notice {
+    background: rgba(255,179,0,0.05);
+    border: 1px solid #7a5500;
+    border-radius: 3px;
+    padding: 5px 12px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #7a5500;
+    text-align: center;
+    margin: 6px 0 3px;
+  }
+
+  /* ── OVERLAY ── */
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-justify-content: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 20;
+  }
+  #overlay.hidden { display: none; }
+  #overlay-msg {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: #555;
+    text-transform: uppercase;
+    margin-top: 14px;
+  }
+  .spinner {
+    width: 30px; height: 30px;
+    border: 2px solid #222;
+    border-top-color: #ffb300;
+    border-radius: 50%;
+    -webkit-animation: spin 0.8s linear infinite;
+    animation: spin 0.8s linear infinite;
+  }
+  @-webkit-keyframes spin { to { -webkit-transform: rotate(360deg); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 700px) {
+    .flap { width: 20px; height: 36px; }
+    .flap-half span { font-size: 16px; line-height: 36px; height: 36px; }
+    .flap-half.bot span { top: -18px; }
+    .flight-row { height: 46px; }
+    #api-key-input { width: 110px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">Flight<span>Board</span></div>
+  <select id="airport-select"></select>
+  <div id="clock">--:--:--</div>
+</div>
+
+<!-- CONTROLS -->
+<div id="controls">
+  <button class="pill-btn active" data-mode="departures">Departures</button>
+  <button class="pill-btn" data-mode="arrivals">Arrivals</button>
+  <div class="vdiv"></div>
+  <select id="terminal-filter"><option value="">All Terminals</option></select>
+  <div id="right-controls">
+    <span id="last-upd"></span>
+    <select id="interval-select" title="Auto-refresh interval">
+      <option value="60">1 min</option>
+      <option value="300" selected>5 min</option>
+      <option value="900">15 min</option>
+      <option value="0">Never</option>
+    </select>
+    <div id="refresh-ring" title="Tap to refresh now">
+      <svg width="30" height="30" viewBox="0 0 30 30">
+        <circle id="ring-track" cx="15" cy="15" r="11"/>
+        <circle id="ring-fill"  cx="15" cy="15" r="11"/>
+      </svg>
+      <span id="ring-label">&#8635;</span>
+    </div>
+    <input id="api-key-input" type="text" placeholder="AirLabs API Key"
+           autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="fetch-btn" class="ctrl-btn">Load</button>
+  </div>
+</div>
+
+<div id="scroll-wrap">
+
+<!-- COLUMN HEADERS -->
+<div id="col-headers">
+  <div class="col-hdr ch-flight">Flight</div>   <div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-airline">Airline</div>  <div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-city">City</div>        <div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-aircraft">Aircraft</div><div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-sched">Scheduled</div>  <div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-actual">Actual</div>    <div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-gate">Gate</div>        <div class="col-gap ch-gap"></div>
+  <div class="col-hdr ch-status">Status</div>
+</div>
+
+<!-- BOARD -->
+<div id="board-wrap">
+  <div id="demo-notice">&#9888; DEMO MODE &#8212; Enter your AirLabs API key and tap Load for live data</div>
+  <div id="flight-list"></div>
+  <div id="overlay">
+    <div class="spinner"></div>
+    <div id="overlay-msg">Loading&#8230;</div>
+  </div>
+</div><!-- /board-wrap -->
+
+</div><!-- /scroll-wrap -->
+
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+var AIRPORTS = [
+  // ── Home airports ──
+  { iata:'RDU', name:'Raleigh-Durham International' },
+  { iata:'BOS', name:'Logan International' },
+  { iata:'EVN', name:'Zvartnots International' },
+  { iata:'FLL', name:'Fort Lauderdale-Hollywood' },
+  // ── All others (A→Z) ──
+  { iata:'ABQ', name:'Albuquerque International' },
+  { iata:'ALB', name:'Albany International' },
+  { iata:'AMS', name:'Amsterdam Schiphol' },
+  { iata:'ATL', name:'Hartsfield-Jackson Atlanta' },
+  { iata:'AUS', name:'Austin-Bergstrom' },
+  { iata:'AVL', name:'Asheville Regional' },
+  { iata:'BCN', name:'Barcelona El Prat' },
+  { iata:'BDL', name:'Bradley International' },
+  { iata:'BHM', name:'Birmingham-Shuttlesworth' },
+  { iata:'BNA', name:'Nashville International' },
+  { iata:'BOG', name:'El Dorado International' },
+  { iata:'BOI', name:'Boise Airport' },
+  { iata:'BUF', name:'Buffalo Niagara' },
+  { iata:'BWI', name:'Baltimore/Washington' },
+  { iata:'CAE', name:'Columbia Metropolitan' },
+  { iata:'CDG', name:'Paris Charles de Gaulle' },
+  { iata:'CHS', name:'Charleston International' },
+  { iata:'CLE', name:'Cleveland Hopkins' },
+  { iata:'CLT', name:'Charlotte Douglas' },
+  { iata:'CMH', name:'John Glenn Columbus' },
+  { iata:'CUN', name:'Cancun International' },
+  { iata:'CVG', name:'Cincinnati/N Kentucky' },
+  { iata:'DAB', name:'Daytona Beach International' },
+  { iata:'DAL', name:'Dallas Love Field' },
+  { iata:'DCA', name:'Ronald Reagan Washington' },
+  { iata:'DEN', name:'Denver International' },
+  { iata:'DFW', name:'Dallas/Fort Worth' },
+  { iata:'DOH', name:'Hamad International' },
+  { iata:'DSM', name:'Des Moines International' },
+  { iata:'DTW', name:'Detroit Metropolitan' },
+  { iata:'DXB', name:'Dubai International' },
+  { iata:'ELP', name:'El Paso International' },
+  { iata:'EWR', name:'Newark Liberty' },
+  { iata:'EZE', name:'Ezeiza International' },
+  { iata:'FAY', name:'Fayetteville Regional' },
+  { iata:'FCO', name:'Rome Fiumicino' },
+  { iata:'FRA', name:'Frankfurt Airport' },
+  { iata:'GDL', name:'Guadalajara International' },
+  { iata:'GEG', name:'Spokane International' },
+  { iata:'GNV', name:'Gainesville Regional' },
+  { iata:'GRR', name:'Gerald R. Ford International' },
+  { iata:'GRU', name:'Sao Paulo Guarulhos' },
+  { iata:'GSO', name:'Piedmont Triad International' },
+  { iata:'GSP', name:'Greenville-Spartanburg' },
+  { iata:'HKG', name:'Hong Kong International' },
+  { iata:'HND', name:'Tokyo Haneda' },
+  { iata:'HOU', name:'William P Hobby' },
+  { iata:'HSV', name:'Huntsville International' },
+  { iata:'HVN', name:'Tweed New Haven' },
+  { iata:'IAD', name:'Washington Dulles' },
+  { iata:'IAH', name:'George Bush Intercontinental' },
+  { iata:'ICN', name:'Seoul Incheon' },
+  { iata:'ILM', name:'Wilmington International' },
+  { iata:'IND', name:'Indianapolis International' },
+  { iata:'IST', name:'Istanbul Airport' },
+  { iata:'JAX', name:'Jacksonville International' },
+  { iata:'JFK', name:'John F Kennedy International' },
+  { iata:'LAS', name:'Harry Reid International' },
+  { iata:'LAX', name:'Los Angeles International' },
+  { iata:'LEX', name:'Blue Grass Airport' },
+  { iata:'LGA', name:'LaGuardia' },
+  { iata:'LGW', name:'London Gatwick' },
+  { iata:'LHR', name:'London Heathrow' },
+  { iata:'LIM', name:'Jorge Chavez International' },
+  { iata:'LIN', name:'Milan Linate' },
+  { iata:'MAD', name:'Madrid Barajas' },
+  { iata:'MCI', name:'Kansas City International' },
+  { iata:'MCO', name:'Orlando International' },
+  { iata:'MDW', name:'Chicago Midway' },
+  { iata:'MEL', name:'Melbourne Airport' },
+  { iata:'MEM', name:'Memphis International' },
+  { iata:'MEX', name:'Mexico City International' },
+  { iata:'MHT', name:'Manchester-Boston Regional' },
+  { iata:'MIA', name:'Miami International' },
+  { iata:'MKE', name:'Milwaukee Mitchell' },
+  { iata:'MLB', name:'Melbourne Orlando International' },
+  { iata:'MSN', name:'Dane County Regional' },
+  { iata:'MSP', name:'Minneapolis-Saint Paul' },
+  { iata:'MSY', name:'Louis Armstrong New Orleans' },
+  { iata:'MUC', name:'Munich Airport' },
+  { iata:'MXP', name:'Milan Malpensa' },
+  { iata:'NRT', name:'Tokyo Narita' },
+  { iata:'OAJ', name:'Albert J Ellis Airport' },
+  { iata:'OAK', name:'Oakland International' },
+  { iata:'OKC', name:'Will Rogers World' },
+  { iata:'OMA', name:'Eppley Airfield' },
+  { iata:'ORD', name:"O'Hare International" },
+  { iata:'ORF', name:'Norfolk International' },
+  { iata:'PBI', name:'Palm Beach International' },
+  { iata:'PDX', name:'Portland International' },
+  { iata:'PEK', name:'Beijing Capital' },
+  { iata:'PHL', name:'Philadelphia International' },
+  { iata:'PHX', name:'Phoenix Sky Harbor' },
+  { iata:'PIT', name:'Pittsburgh International' },
+  { iata:'PNS', name:'Pensacola International' },
+  { iata:'PVD', name:'T.F. Green Airport' },
+  { iata:'PVG', name:'Shanghai Pudong' },
+  { iata:'QRO', name:'Queretaro International' },
+  { iata:'RIC', name:'Richmond International' },
+  { iata:'ROC', name:'Rochester Greater' },
+  { iata:'RSW', name:'Southwest Florida International' },
+  { iata:'SAN', name:'San Diego International' },
+  { iata:'SAT', name:'San Antonio International' },
+  { iata:'SAV', name:'Savannah/Hilton Head' },
+  { iata:'SCL', name:'Santiago International' },
+  { iata:'SDF', name:'Louisville Muhammad Ali' },
+  { iata:'SEA', name:'Seattle-Tacoma' },
+  { iata:'SFO', name:'San Francisco International' },
+  { iata:'SIN', name:'Singapore Changi' },
+  { iata:'SJC', name:'San Jose International' },
+  { iata:'SJU', name:'Luis Munoz Marin International' },
+  { iata:'SLC', name:'Salt Lake City International' },
+  { iata:'SNA', name:'John Wayne Airport' },
+  { iata:'SRQ', name:'Sarasota-Bradenton' },
+  { iata:'STL', name:'St. Louis Lambert' },
+  { iata:'SYD', name:'Sydney Kingsford Smith' },
+  { iata:'SYR', name:'Syracuse Hancock' },
+  { iata:'TLH', name:'Tallahassee International' },
+  { iata:'TPA', name:'Tampa International' },
+  { iata:'TUC', name:'Tucson International' },
+  { iata:'TUL', name:'Tulsa International' },
+  { iata:'TYS', name:'McGhee Tyson Airport' },
+  { iata:'VIE', name:'Vienna International' },
+  { iata:'VPS', name:'Destin-Fort Walton Beach' },
+  { iata:'YUL', name:'Montreal-Trudeau' },
+  { iata:'YVR', name:'Vancouver International' },
+  { iata:'YYC', name:'Calgary International' },
+  { iata:'YYZ', name:'Toronto Pearson' },
+  { iata:'ZRH', name:'Zurich Airport' },
+];
+
+var AIRLINE = {
+  '9E':'Endeavor Air',
+  AA:'American',      AC:'Air Canada',    AF:'Air France',    AM:'Aeromexico',
+  AS:'Alaska',        AV:'Avianca',       B6:'JetBlue',       BA:'British Airways',
+  CM:'Copa Airlines', DL:'Delta',         EI:'Aer Lingus',    EK:'Emirates',
+  F9:'Frontier',      G4:'Allegiant',     IB:'Iberia',        JL:'Japan Airlines',
+  KE:'Korean Air',    KL:'KLM',           LA:'LATAM Airlines',LH:'Lufthansa',
+  LX:'Swiss Intl',    MQ:'Envoy Air',     MX:'Breeze',        NK:'Spirit',
+  OH:'PSA Airlines',  QK:'Air Canada Jazz', QR:'Qatar Airways', SK:'SAS',
+  SQ:'Singapore Air', SY:'Sun Country',   TK:'Turkish Airlines', UA:'United',
+  VS:'Virgin Atlantic', WN:'Southwest',   WS:'WestJet',       XP:'Avelo',
+  Y4:'Volaris',       YX:'Republic Airways', PD:'Porter Airlines',
+};
+
+// ─── CODESHARE PREFERENCES ───────────────────────────────────────────────────
+var CODESHARE_PREF = [
+  'B6',   // JetBlue
+  '9E',   // Endeavor Air
+  'OH',   // PSA Airlines
+  'MQ',   // Envoy Air
+  'YX',   // Republic Airways
+  'AA',   // American
+  'DL',   // Delta
+  'UA',   // United
+  'WN',   // Southwest
+  'AS',   // Alaska
+  'NK',   // Spirit
+  'F9',   // Frontier
+  'G4',   // Allegiant
+  'MX',   // Breeze
+  'XP',   // Avelo
+  'SY',   // Sun Country
+  'QK',   // Air Canada Jazz
+  'AC',   // Air Canada
+  'WS',   // WestJet
+  'BA',   // British Airways
+  'LH',   // Lufthansa
+  'LX',   // Swiss International
+  'AF',   // Air France
+  'KL',   // KLM
+  'EK',   // Emirates
+  'QR',   // Qatar Airways
+  'TK',   // Turkish Airlines
+  'SQ',   // Singapore Air
+  'KE',   // Korean Air
+  'JL',   // Japan Airlines
+  'CM',   // Copa Airlines
+  'LA',   // LATAM Airlines
+  'AV',   // Avianca
+  'EI',   // Aer Lingus
+  'Y4',   // Volaris
+];
+
+var CITY = {
+  ABQ:'Albuquerque',  ALB:'Albany',  AMS:'Amsterdam',  ATL:'Atlanta',
+  AUS:'Austin',  AVL:'Asheville',  BCN:'Barcelona',  BDL:'Hartford',
+  BHM:'Birmingham',  BNA:'Nashville',  BOG:'Bogota',  BOI:'Boise',
+  BOS:'Boston',  BUF:'Buffalo',  BWI:'Baltimore',  CAE:'Columbia SC',
+  CDG:'Paris',  CHS:'Charleston',  CLE:'Cleveland',  CLT:'Charlotte',
+  CMH:'Columbus',  CUN:'Cancun',  CVG:'Cincinnati',  DAB:'Daytona Bch',
+  DAL:'Dallas',  DCA:'Wash-Reagan',  DEN:'Denver',  DFW:'Dallas',
+  DOH:'Doha',  DSM:'Des Moines',  DTW:'Detroit',  DXB:'Dubai',
+  ELP:'El Paso',  EVN:'Yerevan',  EWR:'Newark',  EZE:'Buenos Aires',
+  FAY:'Fayetteville',  FCO:'Rome',  FLL:'Ft Lauderdale',  FRA:'Frankfurt',
+  GDL:'Guadalajara',  GEG:'Spokane',  GNV:'Gainesville',  GRR:'Grand Rapids',
+  GRU:'Sao Paulo',  GSO:'Greensboro',  GSP:'Greenville',  HKG:'Hong Kong',
+  HND:'Tokyo',  HOU:'Houston',  HSV:'Huntsville',  HVN:'New Haven',
+  IAD:'Wash-Dulles',  IAH:'Houston',  ICN:'Seoul',  ILM:'Wilmington NC',
+  IND:'Indianapolis',  IST:'Istanbul',  JAX:'Jacksonville',  JFK:'New York',
+  LAS:'Las Vegas',  LAX:'Los Angeles',  LEX:'Lexington',  LGA:'NY-LaGuardia',
+  LGW:'London',  LHR:'London',  LIM:'Lima',  LIN:'Milan',
+  MAD:'Madrid',  MCI:'Kansas City',  MCO:'Orlando',  MDW:'Chicago',
+  MEL:'Melbourne',  MEM:'Memphis',  MEX:'Mexico City',  MHT:'Manchester',
+  MIA:'Miami',  MKE:'Milwaukee',  MLB:'Melbourne FL',  MSN:'Madison',
+  MSP:'Minneapolis',  MSY:'New Orleans',  MUC:'Munich',  MXP:'Milan',
+  NRT:'Tokyo',  OAJ:'Jacksonville NC',  OAK:'Oakland',  OKC:'Oklahoma City',
+  OMA:'Omaha',  ORD:'Chicago',  ORF:'Norfolk',  PBI:'W Palm Beach',
+  PDX:'Portland',  PEK:'Beijing',  PHL:'Philadelphia',  PHX:'Phoenix',
+  PIT:'Pittsburgh',  PNS:'Pensacola',  PVD:'Providence',  PVG:'Shanghai',
+  QRO:'Queretaro',  RDU:'Raleigh',  RIC:'Richmond',  ROC:'Rochester',
+  RSW:'Fort Myers',  SAN:'San Diego',  SAT:'San Antonio',  SAV:'Savannah',
+  SCL:'Santiago',  SDF:'Louisville',  SEA:'Seattle',  SFO:'San Francisco',
+  SIN:'Singapore',  SJC:'San Jose',  SJU:'San Juan PR',  SLC:'Salt Lake City',
+  SNA:'Orange County',  SRQ:'Sarasota',  STL:'St Louis',  SYD:'Sydney',
+  SYR:'Syracuse',  TLH:'Tallahassee',  TPA:'Tampa',  TUC:'Tucson',
+  TUL:'Tulsa',  TYS:'Knoxville',  VIE:'Vienna',  VPS:'Destin',
+  YUL:'Montreal',  YVR:'Vancouver',  YYC:'Calgary',  YYZ:'Toronto',
+  ZRH:'Zurich',  ACK:'Nantucket',  APA:'Centennial CO',  BCT:'Boca Raton',  GUA:'Guatemala City',  ILG:'Wilmington DE',  KIN:'Kingston',  MDE:'Medellin',  NAS:'Nassau',  NSB:'New Smyrna',  YOW:'Ottawa',  HPN:'Westchester',
+  ISP:'Long Island',  CAP:'Cap-Haitien',  TEB:'Teterboro',    FPO:'Freeport',
+  EYW:'Key West',     MHH:'Marsh Harbor', MVY:'Marthas Vineyard',
+};
+
+var RING_R    = 11;
+var RING_CIRC = 2 * Math.PI * RING_R;
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+var S = {
+  airport:    'RDU',
+  mode:       'departures',
+  terminal:   '',
+  apiKey:     localStorage.getItem('fb_apikey') || '',
+  flights:    [],
+  demo:       true,
+  refreshSec: 300,
+  cdTimer:    null,
+  cdSec:      300,
+  audioCtx:   null
+};
+
+// ─── POLYFILLS ────────────────────────────────────────────────────────────────
+// String.prototype.padEnd — not in iOS 8
+if (!String.prototype.padEnd) {
+  String.prototype.padEnd = function(len, fill) {
+    var s = String(this);
+    fill = fill || ' ';
+    while (s.length < len) s += fill;
+    return s;
+  };
+}
+// Array.prototype.includes — not in iOS 8
+if (!Array.prototype.includes) {
+  Array.prototype.includes = function(v) {
+    for (var i = 0; i < this.length; i++) { if (this[i] === v) return true; }
+    return false;
+  };
+}
+// String.prototype.includes — not in iOS 8
+if (!String.prototype.includes) {
+  String.prototype.includes = function(v) { return this.indexOf(v) !== -1; };
+}
+
+// ─── SEEN SET (simple object-based for iOS 8) ────────────────────────────────
+function SeenSet() { this._d = {}; }
+SeenSet.prototype.has = function(k) { return Object.prototype.hasOwnProperty.call(this._d, k); };
+SeenSet.prototype.add = function(k) { this._d[k] = 1; };
+
+// ─── AUDIO ───────────────────────────────────────────────────────────────────
+function ensureAudio() {
+  if (!S.audioCtx) {
+    try { S.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return false; }
+  }
+  if (S.audioCtx.state === 'suspended') S.audioCtx.resume();
+  return true;
+}
+
+function scheduleClick(offsetMs) {
+  if (!ensureAudio()) return;
+  var ctx = S.audioCtx;
+  var t   = ctx.currentTime + offsetMs / 1000;
+  var dur    = 0.022;
+  var bufLen = Math.floor(ctx.sampleRate * dur);
+  var buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  var d      = buf.getChannelData(0);
+  for (var i = 0; i < bufLen; i++) {
+    var env = Math.pow(1 - i / bufLen, 3.0);
+    d[i] = (Math.random() * 2 - 1) * env;
+  }
+  var src = ctx.createBufferSource();
+  src.buffer = buf;
+  var bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.9;
+  var hs = ctx.createBiquadFilter();
+  hs.type = 'highshelf'; hs.frequency.value = 6000; hs.gain.value = -8;
+  var gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.4, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  src.connect(bp); bp.connect(hs); hs.connect(gain); gain.connect(ctx.destination);
+  src.start(t); src.stop(t + dur + 0.01);
+}
+
+function playFlipSound(numFlaps) {
+  if (!ensureAudio()) return;
+  var spread = Math.min(numFlaps * 22, 700);
+  var count  = Math.min(numFlaps, 60);
+  for (var i = 0; i < count; i++) {
+    scheduleClick((i / count) * spread + Math.random() * 30);
+  }
+}
+
+// ─── DEMO DATA ────────────────────────────────────────────────────────────────
+function demoFlights(airport, mode) {
+  var now   = new Date();
+  var DESTS = ['ATL','JFK','LAX','ORD','BOS','DFW','MIA','DEN','SFO','SEA','PHX','LGA'];
+  var TPL = [
+    {fl:'AA1234',al:'AA',ac:'B738',term:'1',gate:'A12',delay:0,  st:'scheduled'},
+    {fl:'DL567', al:'DL',ac:'A321',term:'1',gate:'B7', delay:25, st:'delayed'  },
+    {fl:'UA890', al:'UA',ac:'B772',term:'2',gate:'C3', delay:0,  st:'boarding' },
+    {fl:'WN210', al:'WN',ac:'B737',term:'2',gate:'D14',delay:0,  st:'on-time'  },
+    {fl:'B6445', al:'B6',ac:'A320',term:'1',gate:'A5', delay:15, st:'delayed'  },
+    {fl:'NK88',  al:'NK',ac:'A319',term:'1',gate:'B2', delay:0,  st:'scheduled'},
+    {fl:'F9701', al:'F9',ac:'A21N',term:'2',gate:'C9', delay:0,  st:'landed'   },
+    {fl:'AS334', al:'AS',ac:'B739',term:'1',gate:'A18',delay:0,  st:'active'   },
+    {fl:'G4229', al:'G4',ac:'B752',term:'2',gate:'D1', delay:90, st:'delayed'  },
+    {fl:'AA2100',al:'AA',ac:'B788',term:'1',gate:'A22',delay:0,  st:'cancelled'},
+    {fl:'DL1099',al:'DL',ac:'CRJ9',term:'2',gate:'B11',delay:0,  st:'scheduled'},
+    {fl:'UA2310',al:'UA',ac:'A319',term:'1',gate:'C6', delay:45, st:'delayed'  }
+  ];
+  var result = [];
+  for (var i = 0; i < TPL.length; i++) {
+    var t = TPL[i];
+    var sMs = now.getTime() + (-45 + i * 25) * 60000;
+    var s = new Date(sMs);
+    var o = DESTS[i % DESTS.length];
+    result.push({
+      flight_iata:   t.fl,
+      airline_iata:  t.al,
+      aircraft_icao: t.ac,
+      dep_terminal:  mode === 'departures' ? t.term : '',
+      arr_terminal:  mode === 'arrivals'   ? t.term : '',
+      dep_gate:      mode === 'departures' ? t.gate : '',
+      arr_gate:      mode === 'arrivals'   ? t.gate : '',
+      dep_time:      mode === 'departures' ? fmtDate(s) : fmtDate(new Date(sMs - 180*60000)),
+      arr_time:      mode === 'arrivals'   ? fmtDate(s) : fmtDate(new Date(sMs + 120*60000)),
+      dep_estimated: t.delay ? fmtDate(new Date(sMs + t.delay*60000)) : null,
+      arr_estimated: t.delay ? fmtDate(new Date(sMs + t.delay*60000)) : null,
+      dep_iata:      mode === 'departures' ? airport : o,
+      arr_iata:      mode === 'arrivals'   ? airport : o,
+      status:        t.st,
+      delayed:       t.delay
+    });
+  }
+  return result;
+}
+function fmtDate(d) {
+  var h = d.getHours(), m = d.getMinutes();
+  return (h < 10 ? '0' + h : '' + h) + ':' + (m < 10 ? '0' + m : '' + m);
+}
+
+// ─── DOM ─────────────────────────────────────────────────────────────────────
+var $airportSel = document.getElementById('airport-select');
+var $modeBtns   = document.querySelectorAll('.pill-btn[data-mode]');
+var $termSel    = document.getElementById('terminal-filter');
+var $apiKey     = document.getElementById('api-key-input');
+var $fetchBtn   = document.getElementById('fetch-btn');
+var $list       = document.getElementById('flight-list');
+var $overlay    = document.getElementById('overlay');
+var $overlayMsg = document.getElementById('overlay-msg');
+var $demo       = document.getElementById('demo-notice');
+var $ringFill   = document.getElementById('ring-fill');
+var $ringLabel  = document.getElementById('ring-label');
+var $lastUpd    = document.getElementById('last-upd');
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  for (var i = 0; i < AIRPORTS.length; i++) {
+    var a = AIRPORTS[i];
+    var o = document.createElement('option');
+    o.value = a.iata;
+    o.textContent = a.iata + ' — ' + a.name;
+    $airportSel.appendChild(o);
+  }
+  $airportSel.value = S.airport;
+  if (S.apiKey) $apiKey.value = S.apiKey;
+  setInterval(tickClock, 1000);
+  tickClock();
+  S.flights = demoFlights(S.airport, S.mode);
+  updateTermFilter(S.flights);
+  renderFlights(true);
+  hideOverlay();
+  startCountdown();
+}
+
+function tickClock() {
+  var now = new Date();
+  var h = now.getHours(), m = now.getMinutes(), sec = now.getSeconds();
+  document.getElementById('clock').textContent =
+    (h < 10 ? '0'+h : h) + ':' + (m < 10 ? '0'+m : m) + ':' + (sec < 10 ? '0'+sec : sec);
+}
+
+// ─── COUNTDOWN ───────────────────────────────────────────────────────────────
+function startCountdown() {
+  clearInterval(S.cdTimer);
+  if (S.refreshSec === 0) {
+    $ringFill.style.strokeDashoffset = '0';
+    $ringFill.style.stroke = '#7a5500';
+    return;
+  }
+  S.cdSec = S.refreshSec;
+  setRing(S.refreshSec);
+  S.cdTimer = setInterval(function() {
+    S.cdSec--;
+    setRing(S.cdSec);
+    if (S.cdSec <= 0) { clearInterval(S.cdTimer); load(); }
+  }, 1000);
+}
+
+function setRing(sec) {
+  var frac = Math.max(0, sec / S.refreshSec);
+  $ringFill.style.strokeDashoffset = String(RING_CIRC * (1 - frac));
+  $ringFill.style.stroke = sec <= 30 ? '#ffb300' : '#7a5500';
+}
+
+// ─── EVENTS ───────────────────────────────────────────────────────────────────
+$airportSel.addEventListener('change', function() {
+  S.airport = $airportSel.value;
+  S.terminal = ''; $termSel.value = '';
+  load();
+});
+
+for (var _bi = 0; _bi < $modeBtns.length; _bi++) {
+  (function(btn) {
+    btn.addEventListener('click', function() {
+      S.mode = btn.getAttribute('data-mode');
+      for (var j = 0; j < $modeBtns.length; j++) {
+        if ($modeBtns[j] === btn) {
+          $modeBtns[j].className = 'pill-btn active';
+        } else {
+          $modeBtns[j].className = 'pill-btn';
+        }
+      }
+      S.terminal = ''; $termSel.value = '';
+      load();
+    });
+  })($modeBtns[_bi]);
+}
+
+$termSel.addEventListener('change', function() {
+  S.terminal = $termSel.value;
+  renderFlights(false);
+});
+
+$fetchBtn.addEventListener('click', function() {
+  var key = $apiKey.value.replace(/^\s+|\s+$/g, '');
+  if (key) {
+    S.apiKey = key;
+    localStorage.setItem('fb_apikey', key);
+    S.demo = false;
+    load();
+  } else {
+    S.demo = true;
+    S.flights = demoFlights(S.airport, S.mode);
+    updateTermFilter(S.flights);
+    renderFlights(true);
+    $demo.textContent = '\u26a0 DEMO MODE \u2014 Enter your AirLabs API key and tap Load';
+    $demo.style.display = 'block';
+    hideOverlay();
+  }
+});
+
+document.getElementById('refresh-ring').addEventListener('click', function() {
+  clearInterval(S.cdTimer);
+  load();
+});
+
+document.getElementById('interval-select').addEventListener('change', function() {
+  S.refreshSec = parseInt(this.value, 10);
+  clearInterval(S.cdTimer);
+  startCountdown();
+});
+
+// ─── LOAD ─────────────────────────────────────────────────────────────────────
+function load() {
+  clearInterval(S.cdTimer);
+
+  if (!S.apiKey) {
+    S.demo = true;
+    S.flights = demoFlights(S.airport, S.mode);
+    updateTermFilter(S.flights);
+    renderFlights(true);
+    $demo.style.display = 'block';
+    hideOverlay();
+    startCountdown();
+    return;
+  }
+
+  showOverlay('Loading flights\u2026');
+
+  var p   = S.mode === 'departures' ? 'dep_iata=' + S.airport : 'arr_iata=' + S.airport;
+  var url = 'https://airlabs.co/api/v9/schedules?' + p + '&api_key=' + S.apiKey + '&limit=300';
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState !== 4) return;
+    if (xhr.status === 200) {
+      try {
+        var js = JSON.parse(xhr.responseText);
+        if (js.error) { throw new Error(js.error.message || 'API error'); }
+
+        var roleKey = S.mode === 'departures' ? 'dep_iata' : 'arr_iata';
+        var allLegs = [];
+        var resp = js.response || [];
+        for (var i = 0; i < resp.length; i++) {
+          var f = resp[i];
+          if ((f[roleKey] || '').toUpperCase() === S.airport.toUpperCase()) {
+            allLegs.push(f);
+          }
+        }
+        allLegs.sort(function(a, b) {
+          var ai = CODESHARE_PREF.indexOf(a.airline_iata);
+          var bi = CODESHARE_PREF.indexOf(b.airline_iata);
+          var ap = ai === -1 ? 999 : ai;
+          var bp = bi === -1 ? 999 : bi;
+          return ap - bp;
+        });
+        var seen = new SeenSet();
+        var flights = [];
+        for (var j = 0; j < allLegs.length; j++) {
+          var fl = allLegs[j];
+          var ft = S.mode === 'departures' ? (fl.dep_time || '') : (fl.arr_time || '');
+          var key = (fl.dep_iata || '') + '|' + (fl.arr_iata || '') + '|' + ft;
+          if (!seen.has(key)) {
+            seen.add(key);
+            flights.push(fl);
+          }
+        }
+        S.flights = flights;
+        S.demo = false;
+        $demo.style.display = 'none';
+        var now = new Date();
+        var th = now.getHours(), tm = now.getMinutes();
+        $lastUpd.textContent = 'UPD ' + (th < 10 ? '0'+th : th) + ':' + (tm < 10 ? '0'+tm : tm);
+        updateTermFilter(S.flights);
+        renderFlights(true);
+        hideOverlay();
+      } catch(err) {
+        onLoadError(err.message);
+      }
+    } else {
+      onLoadError('HTTP ' + xhr.status);
+    }
+    startCountdown();
+  };
+  xhr.send();
+}
+
+function onLoadError(msg) {
+  S.demo = true;
+  S.flights = demoFlights(S.airport, S.mode);
+  updateTermFilter(S.flights);
+  renderFlights(true);
+  $demo.textContent = '\u26a0 API error \u2014 demo data shown (' + msg + ')';
+  $demo.style.display = 'block';
+  hideOverlay();
+}
+
+// ─── TERMINAL FILTER ─────────────────────────────────────────────────────────
+function updateTermFilter(flights) {
+  var key = S.mode === 'departures' ? 'dep_terminal' : 'arr_terminal';
+  var termObj = {};
+  var terms = [];
+  for (var i = 0; i < flights.length; i++) {
+    var v = flights[i][key];
+    if (v && !termObj[v]) { termObj[v] = 1; terms.push(v); }
+  }
+  terms.sort();
+  $termSel.innerHTML = '<option value="">All Terminals</option>';
+  for (var j = 0; j < terms.length; j++) {
+    var o = document.createElement('option');
+    o.value = terms[j]; o.textContent = 'Terminal ' + terms[j];
+    $termSel.appendChild(o);
+  }
+  if (S.terminal && terms.indexOf(S.terminal) !== -1) $termSel.value = S.terminal;
+  else S.terminal = '';
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderFlights(animate) {
+  var termKey  = S.mode === 'departures' ? 'dep_terminal'  : 'arr_terminal';
+  var gateKey  = S.mode === 'departures' ? 'dep_gate'      : 'arr_gate';
+  var schedKey = S.mode === 'departures' ? 'dep_time'      : 'arr_time';
+  var estKey   = S.mode === 'departures' ? 'dep_estimated' : 'arr_estimated';
+  var destKey  = S.mode === 'departures' ? 'arr_iata'      : 'dep_iata';
+
+  var flights = S.flights.slice();
+  if (S.terminal) {
+    var filtered = [];
+    for (var fi = 0; fi < flights.length; fi++) {
+      if (flights[fi][termKey] === S.terminal) filtered.push(flights[fi]);
+    }
+    flights = filtered;
+  }
+
+  var _now   = new Date();
+  var nowMin = _now.getHours() * 60 + _now.getMinutes();
+  var inWin = [];
+  for (var wi = 0; wi < flights.length; wi++) {
+    var m = toMin(flights[wi][schedKey]);
+    if (m !== 99*60+99 && m >= nowMin - 45 && m <= nowMin + 240) inWin.push(flights[wi]);
+  }
+  flights = inWin;
+  flights.sort(function(a, b) { return toMin(a[schedKey]) - toMin(b[schedKey]); });
+
+  if (!flights.length) { $list.innerHTML = ''; showOverlay('No flights found'); return; }
+  hideOverlay();
+
+  var frag = document.createDocumentFragment();
+  var totalFlaps = 0;
+
+  for (var idx = 0; idx < flights.length; idx++) {
+    var f       = flights[idx];
+    var id      = f.flight_iata || ('r' + idx);
+    var sched   = fmtTime(f[schedKey]) || '--:--';
+    var actual  = fmtTime(f[estKey])   || sched;
+    var airline = (AIRLINE[f.airline_iata] || f.airline_iata || '?').slice(0,12);
+    var destCode= ((f[destKey] || '---').toUpperCase());
+    var city    = (CITY[destCode] || destCode).slice(0,12);
+    var acft    = (f.aircraft_icao || '---').slice(0,3);
+    var gate    = (f[gateKey] || '---').slice(0,4);
+    var status  = mapStatus(f);
+
+    var cols = [
+      pad(id,      7),
+      pad(airline, 12),
+      pad(city,    12),
+      pad(acft,    3),
+      pad(sched,   5),
+      pad(actual,  5),
+      pad(gate,    4)
+    ];
+    var classes = ['row-flight','row-airline','row-city','row-aircraft','row-sched','row-actual','row-gate'];
+
+    for (var ci = 0; ci < cols.length; ci++) totalFlaps += cols[ci].length;
+
+    var row = document.createElement('div');
+    row.className = 'flight-row';
+
+    for (var ci2 = 0; ci2 < cols.length; ci2++) {
+      var cell = document.createElement('div');
+      cell.className = 'flap-cell ' + classes[ci2];
+      buildFlaps(cell, cols[ci2], animate);
+      row.appendChild(cell);
+
+      if (ci2 < cols.length - 1) {
+        var gap = document.createElement('div');
+        gap.className = 'row-gap';
+        row.appendChild(gap);
+      }
+    }
+
+    // gap before status
+    var preStatusGap = document.createElement('div');
+    preStatusGap.className = 'row-gap';
+    row.appendChild(preStatusGap);
+
+    var statusCell = document.createElement('div');
+    statusCell.className = 'row-status';
+    var badge = document.createElement('span');
+    badge.className = 'status-badge ' + sClass(status);
+    badge.textContent = status;
+    statusCell.appendChild(badge);
+    row.appendChild(statusCell);
+
+    frag.appendChild(row);
+  }
+
+  $list.innerHTML = '';
+  $list.appendChild(frag);
+  if (animate) playFlipSound(totalFlaps);
+}
+
+// ─── FLAP BUILDER ────────────────────────────────────────────────────────────
+function buildFlaps(cell, text, animate) {
+  cell.innerHTML = '';
+  for (var i = 0; i < text.length; i++) {
+    var ch  = text.charAt(i);
+    var el  = document.createElement('div');
+    el.className = 'flap';
+
+    var topHalf = document.createElement('div');
+    topHalf.className = 'flap-half top';
+    var topSpan = document.createElement('span');
+    topSpan.textContent = ch === ' ' ? '\u00a0' : ch;
+    topHalf.appendChild(topSpan);
+
+    var botHalf = document.createElement('div');
+    botHalf.className = 'flap-half bot';
+    var botSpan = document.createElement('span');
+    botSpan.textContent = ch === ' ' ? '\u00a0' : ch;
+    botHalf.appendChild(botSpan);
+
+    var mid = document.createElement('div');
+    mid.className = 'flap-mid';
+
+    el.appendChild(topHalf);
+    el.appendChild(botHalf);
+    el.appendChild(mid);
+
+    if (animate) {
+      (function(el, delay) {
+        setTimeout(function() {
+          el.className = 'flap flipping';
+          setTimeout(function() { el.className = 'flap'; }, 280);
+        }, delay);
+      })(el, i * 22 + Math.random() * 30);
+    }
+    cell.appendChild(el);
+  }
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function fmtTime(t) {
+  if (!t) return '';
+  return (t.indexOf(' ') !== -1) ? t.slice(11,16) : t.slice(0,5);
+}
+function toMin(t) {
+  var s = fmtTime(t || '99:99');
+  var parts = s.split(':');
+  var h = parseInt(parts[0], 10) || 99;
+  var m = parseInt(parts[1], 10) || 99;
+  return h * 60 + m;
+}
+function pad(s, n) {
+  s = String(s);
+  while (s.length < n) s += ' ';
+  return s.slice(0, n);
+}
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function mapStatus(f) {
+  var s = (f.status || '').toLowerCase();
+  if (s === 'cancelled')           return 'CANCELLED';
+  if (s === 'landed')              return 'LANDED';
+  if (s === 'active')              return 'EN ROUTE';
+  if (s === 'boarding')            return 'BOARDING';
+  if (f.delayed && f.delayed > 0)  return 'DELAYED';
+  if (s === 'on-time')             return 'ON TIME';
+  return 'SCHEDULED';
+}
+function sClass(s) {
+  if (s === 'ON TIME' || s === 'EN ROUTE') return 's-ontime';
+  if (s === 'DELAYED')   return 's-delayed';
+  if (s === 'CANCELLED') return 's-cancelled';
+  if (s === 'BOARDING')  return 's-boarding';
+  if (s === 'LANDED')    return 's-landed';
+  return 's-default';
+}
+function showOverlay(msg) { $overlayMsg.textContent = msg; $overlay.className = 'visible'; $overlay.style.display = ''; }
+function hideOverlay()    { $overlay.className = 'hidden'; }
+
+// ─── GO ───────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
